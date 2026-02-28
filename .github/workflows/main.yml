@@ -48,13 +48,14 @@ jobs:
           target: "/home/ec2-user/app/"
           overwrite: true
 
-      # 6️⃣ Stop Old App & Start New One
+      # 6️⃣ Stop Old App & Start New One (FINAL FIXED VERSION)
       - name: Deploy Application
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
+          script_stop: false
           script: |
             sudo mkdir -p /var/log/app
             sudo chown ec2-user:ec2-user /var/log/app
@@ -62,14 +63,17 @@ jobs:
 
             cd /home/ec2-user/app
 
+            # Gracefully stop old app if running
             PID=$(pgrep -f datastore-0.0.7.jar || true)
             if [ -n "$PID" ]; then
               echo "Stopping existing app with PID: $PID"
-              kill -9 $PID || true
+              kill -15 $PID || true
+              sleep 5
             else
               echo "No existing application running"
             fi
 
+            # Start new application
             nohup env \
             MYSQL_HOST=database-1.c2xkcguk0xym.us-east-1.rds.amazonaws.com \
             MYSQL_PORT=3306 \
