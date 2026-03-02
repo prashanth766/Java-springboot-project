@@ -1,5 +1,6 @@
 name: Full CI/CD Pipeline
 
+# 🚀 Trigger pipeline when pushing to main branch
 on:
   push:
     branches: ["main"]
@@ -9,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout SCM
+      # 1️⃣ Checkout source code
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -20,74 +21,52 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # # 3️⃣ Clean & Package + SonarQube Scan
-      # - name: Sonar Scan
-      #   env:
-      #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-      #   run: |
-      #     mvn clean verify sonar:sonar \
-      #       -DskipTests \
-      #       -Dsonar.projectKey=myproject \
-      #       -Dsonar.host.url=${{ secrets.SONAR_URL }} \
-      #       -Dsonar.login=${{ secrets.SONAR_TOKEN }}
-
-      # 4️⃣ Quality Gate Check
-      # - name: Quality Gate
-      #   uses: sonarsource/sonarqube-quality-gate-action@v1
-      #   timeout-minutes: 5
-      #   with:
-      #     scanMetadataReportFile: target/site/sonar/report-task.txt
-
-      # 5️⃣ Build final JAR
+      # 3️⃣ Build Spring Boot JAR
       - name: Build JAR
         working-directory: backend
         run: mvn clean install -DskipTests
-    
-      # 6️⃣ Prepare EC2 folder and stop old app
-      - name: Prepare EC2
+
+      # 4️⃣ Stop old application on EC2
+      - name: Stop Old Application
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
           script: |
+            echo "📁 Creating app directory"
             mkdir -p /home/ec2-user/app
+
+            echo "🛑 Stopping old application if running"
             pkill -f datastore-0.0.7.jar || true
+
+            echo "🗑 Removing old JAR file"
             rm -f /home/ec2-user/app/datastore-0.0.7.jar
 
-      # 7️⃣ Upload JAR to EC2
-      - name: Prepare EC2
+      # 5️⃣ Upload new JAR to EC2
+      - name: Upload JAR to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          source: "backend/target/datastore-0.0.7.jar"
+          target: "/home/ec2-user/app"
+
+      # 6️⃣ Start new application on EC2
+      - name: Start Application
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
           script: |
-            mkdir -p /home/ec2-user/app
-
-            PID=$(pgrep -f datastore-0.0.7.jar || true)
-
-            if [ -n "$PID" ]; then
-              echo "Stopping application with PID: $PID"
-              kill -9 $PID
-            else
-              echo "No running application found"
-            fi
-
-            rm -f /home/ec2-user/app/datastore-0.0.7.jar
-
-      # 8️⃣ Run New Application
-      - name: Run Application on EC2
-        uses: appleboy/ssh-action@v1.1.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ec2-user
-          key: ${{ secrets.EC2_KEY }}
-          script: |
+            echo "📁 Setting up log directory"
             sudo mkdir -p /var/log/app
             sudo chown ec2-user:ec2-user /var/log/app
             sudo chmod 755 /var/log/app
 
+            echo "🚀 Starting application"
             cd /home/ec2-user/app
 
             nohup env \
@@ -100,4 +79,4 @@ jobs:
             --server.port=8084 \
             > /var/log/app/nohup.out 2>&1 &
 
-            echo "🚀 New Application Started"
+            echo "✅ Application Started Successfully"
