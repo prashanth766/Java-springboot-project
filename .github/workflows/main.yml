@@ -41,8 +41,8 @@ jobs:
       # 5️⃣ Build final JAR
       - name: Build JAR
         working-directory: backend
-        run: mvn clean package -DskipTests=true
-
+        run: mvn clean install -DskipTests
+    
       # 6️⃣ Prepare EC2 folder and stop old app
       - name: Prepare EC2
         uses: appleboy/ssh-action@v1.1.0
