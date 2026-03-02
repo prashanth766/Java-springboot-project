@@ -26,21 +26,30 @@ jobs:
         working-directory: backend
         run: mvn clean install -DskipTests
 
-      # 4️⃣ Stop old application on EC2
+            # 4️⃣ Stop old application on EC2 (SAFE VERSION)
       - name: Stop Old Application
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
+          script_stop: false
           script: |
             echo "📁 Creating app directory"
             mkdir -p /home/ec2-user/app
 
-            echo "🛑 Stopping old application if running"
-            pkill -f datastore-0.0.7.jar || true
+            echo "🔍 Checking for running application"
+            PID=$(ps -ef | grep datastore-0.0.7.jar | grep -v grep | awk '{print $2}')
 
-            echo "🗑 Removing old JAR file"
+            if [ ! -z "$PID" ]; then
+              echo "🛑 Stopping application with PID: $PID"
+              kill $PID
+              sleep 5
+            else
+              echo "✅ No running application found"
+            fi
+
+            echo "🗑 Removing old JAR"
             rm -f /home/ec2-user/app/datastore-0.0.7.jar
 
       # 5️⃣ Upload new JAR to EC2
