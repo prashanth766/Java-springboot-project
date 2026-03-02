@@ -56,15 +56,25 @@ jobs:
             rm -f /home/ec2-user/app/datastore-0.0.7.jar
 
       # 7️⃣ Upload JAR to EC2
-      - name: Upload JAR to EC2
-        uses: appleboy/scp-action@v0.1.7
+      - name: Prepare EC2
+        uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
-          source: "backend/target/datastore-0.0.7.jar"
-          target: "/home/ec2-user/app/"
-          overwrite: true
+          script: |
+            mkdir -p /home/ec2-user/app
+
+            PID=$(pgrep -f datastore-0.0.7.jar || true)
+
+            if [ -n "$PID" ]; then
+              echo "Stopping application with PID: $PID"
+              kill -9 $PID
+            else
+              echo "No running application found"
+            fi
+
+            rm -f /home/ec2-user/app/datastore-0.0.7.jar
 
       # 8️⃣ Run New Application
       - name: Run Application on EC2
