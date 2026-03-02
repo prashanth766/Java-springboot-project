@@ -64,22 +64,22 @@ jobs:
           target: "/home/ec2-user/app/"
           overwrite: true
 
-      # 7️⃣ Stop Old Application
-      # - name: Stop Old Application
-      #   uses: appleboy/ssh-action@v1.1.0
-      #   with:
-      #     host: ${{ secrets.EC2_HOST }}
-      #     username: root
-      #     key: ${{ secrets.EC2_KEY }}
-      #     script_stop: false
-      #     script: |
-      #       PID=$(pgrep -f datastore-0.0.7.jar || true)
-      #       if [ -n "$PID" ]; then
-      #           echo "Stopping existing application with PID: $PID"
-      #          ### sudo kill -9 $PID || true
-      #       else
-      #           echo "No existing application running"
-      #       fi
+     # 7️⃣ Stop Old Application
+      - name: Stop Old Application
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: root
+          key: ${{ secrets.EC2_KEY }}
+          script_stop: false
+          script: |
+            PID=$(pgrep -f datastore-0.0.7.jar || true)
+            if [ -n "$PID" ]; then
+                echo "Stopping existing application with PID: $PID"
+               ### sudo kill -9 $PID || true
+            else
+                echo "No existing application running"
+            fi
 
 
       # 8️⃣ Run New Application
